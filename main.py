@@ -1,16 +1,9 @@
-# This is a sample Python script.
+#main.py
+from engine.board import Board
 
-# Press ⌃F5 to execute it or replace it with your code.
-# Press Double ⇧ to search everywhere for classes, files, tool windows, actions, and settings.
-
-
-def print_hi(name):
-    # Use a breakpoint in the code line below to debug your script.
-    print(f'Hi, {name}')  # Press F9 to toggle the breakpoint.
-
-
-# Press the green button in the gutter to run the script.
-if __name__ == '__main__':
-    print_hi('PyCharm')
-
-# See PyCharm help at https://www.jetbrains.com/help/pycharm/
+board = Board()
+board.print_board()
+print(f"Squares 0(a8):{board.get(0)}")
+print(f"Squares 63(h1):{board.get(63)}")
+print(f"Squares name 0:{board.square_name(0)}")
+print(f"Squares name 63:{board.square_name(63)}")
