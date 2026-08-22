@@ -26,8 +26,8 @@ PIECE_VALUES ={
     EMPTY:0
 }
 
-#Starting postion
-#Index 0=a8(topleft), index 63= h1(bottomright)
+#Starting position
+#Index 0=a8(top left), index 63= h1(bottom right)
 STARTING_FEN=[
     BR, BN, BB, BQ, BK, BB, BN, BR, #R8
     BP, BP, BP, BP, BP, BP, BP, BP, #R7
@@ -48,7 +48,7 @@ class Board:
         self.turn = "white"
 
         #CASTLING RIGHT
-        self.castling_turn = {
+        self.castling = {
             "white_kingside": True,
             "black_kingside": True,
             "white_queenside": True,
