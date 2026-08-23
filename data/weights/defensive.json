@@ -1,0 +1,9 @@
+{
+  "style": "defensive",
+  "weights": {
+    "material": 2.189,
+    "position": 1.283,
+    "mobility": 1.798
+  },
+  "fitness": 1.077
+}
