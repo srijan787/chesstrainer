@@ -1,23 +1,28 @@
 # main.py
-from game.rating import record_game, get_stats, get_recent_games
+from engine.board import Board
+from engine.search import find_best_move, make_move
+from engine.moves import get_legal_moves
+from game.analysis import analyse_game, format_analysis
 
-# Simulate a few games
-print("Simulating games...\n")
-record_game("aggressive_easy", 1091, "aggressive", "win")
-record_game("defensive_medium", 1124, "defensive", "loss")
-record_game("positional_hard", 1232, "positional", "draw")
-record_game("aggressive_hard", 1293, "aggressive", "win")
+# Play a quick 10-move game, recording all moves
+board        = Board()
+move_history = []
 
-stats = get_stats()
-print(f"Rating:       {stats['rating']}")
-print(f"Games played: {stats['games_played']}")
-print(f"Wins:         {stats['wins']}")
-print(f"Losses:       {stats['losses']}")
-print(f"Draws:        {stats['draws']}")
-print(f"Win rate:     {stats['win_rate']}%")
+print("Playing a quick test game...\n")
+for i in range(10):
+    legal = get_legal_moves(board)
+    if not legal:
+        break
+    move = find_best_move(board, depth=1)
+    if move is None:
+        break
+    move_history.append(move)
+    make_move(board, move)
 
-print("\nRecent games:")
-for game in get_recent_games():
-    change = f"+{game['change']}" if game['change'] > 0 else str(game['change'])
-    print(f"  vs {game['bot']:<25} {game['result']:<5} "
-          f"{game['rating_before']} → {game['rating_after']} ({change})")
+print(f"Moves played: {len(move_history)}")
+
+# Analyse the game as if the human played White
+analysis = analyse_game(move_history, player_colour="white",
+                        analysis_depth=2)
+
+print(format_analysis(analysis))
