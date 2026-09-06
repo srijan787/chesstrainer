@@ -1,28 +1,26 @@
 # main.py
-from engine.board import Board
-from engine.search import find_best_move, make_move
-from engine.moves import get_legal_moves
-from game.analysis import analyse_game, format_analysis
+from game.rating import get_rating
+from game.ladder import (get_ladder_progress, get_next_rung,
+                         check_and_award)
 
-# Play a quick 10-move game, recording all moves
-board        = Board()
-move_history = []
+rating   = get_rating()
+progress = get_ladder_progress(rating)
+next_rung = get_next_rung(rating)
 
-print("Playing a quick test game...\n")
-for i in range(10):
-    legal = get_legal_moves(board)
-    if not legal:
-        break
-    move = find_best_move(board, depth=1)
-    if move is None:
-        break
-    move_history.append(move)
-    make_move(board, move)
+print(f"Player rating: {rating}")
+print(f"Ladder progress: {progress['completed']}/{progress['total']} completed")
+print(f"Available: {progress['available']}  Locked: {progress['locked']}\n")
 
-print(f"Moves played: {len(move_history)}")
+if next_rung:
+    print(f"Next challenge: Rung {next_rung['rung']} — {next_rung['label']}")
+    print(f"  Bot:   {next_rung['bot']} ({next_rung['bot_elo']} ELO)")
+    print(f"  Style: {next_rung['style']}")
+    print(f"  {next_rung['description']}\n")
 
-# Analyse the game as if the human played White
-analysis = analyse_game(move_history, player_colour="white",
-                        analysis_depth=2)
+# Simulate winning rung 1
+reward = check_and_award("aggressive_easy", "win", rating)
+if reward:
+    print(f"Reward: {reward}")
 
-print(format_analysis(analysis))
+progress = get_ladder_progress(rating)
+print(f"Progress after win: {progress['completed']}/{progress['total']}")
