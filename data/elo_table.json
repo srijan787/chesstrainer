@@ -1,1 +1,74 @@
-{}
+{
+  "aggressive_hard": {
+    "style": "aggressive",
+    "depth": 1,
+    "imprecision": 0.0,
+    "elo": 1293
+  },
+  "defensive_hard": {
+    "style": "defensive",
+    "depth": 1,
+    "imprecision": 0.0,
+    "elo": 1291
+  },
+  "positional_expert": {
+    "style": "positional",
+    "depth": 2,
+    "imprecision": 0.2,
+    "elo": 1284
+  },
+  "aggressive_expert": {
+    "style": "aggressive",
+    "depth": 2,
+    "imprecision": 0.2,
+    "elo": 1258
+  },
+  "defensive_expert": {
+    "style": "defensive",
+    "depth": 2,
+    "imprecision": 0.2,
+    "elo": 1256
+  },
+  "positional_hard": {
+    "style": "positional",
+    "depth": 1,
+    "imprecision": 0.0,
+    "elo": 1232
+  },
+  "positional_medium": {
+    "style": "positional",
+    "depth": 1,
+    "imprecision": 0.4,
+    "elo": 1161
+  },
+  "aggressive_medium": {
+    "style": "aggressive",
+    "depth": 1,
+    "imprecision": 0.4,
+    "elo": 1150
+  },
+  "defensive_easy": {
+    "style": "defensive",
+    "depth": 1,
+    "imprecision": 0.8,
+    "elo": 1130
+  },
+  "defensive_medium": {
+    "style": "defensive",
+    "depth": 1,
+    "imprecision": 0.4,
+    "elo": 1124
+  },
+  "positional_easy": {
+    "style": "positional",
+    "depth": 1,
+    "imprecision": 0.8,
+    "elo": 1106
+  },
+  "aggressive_easy": {
+    "style": "aggressive",
+    "depth": 1,
+    "imprecision": 0.8,
+    "elo": 1091
+  }
+}
