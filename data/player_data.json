@@ -1,1 +1,14 @@
-{}
+{
+  "rating": 1200,
+  "games_played": 0,
+  "wins": 0,
+  "losses": 0,
+  "draws": 0,
+  "history": [],
+  "rating_history": [
+    {
+      "rating": 1200,
+      "date": "2026-09-06 19:20"
+    }
+  ]
+}
