@@ -1,7 +1,9 @@
 # main.py
 import pygame
+import sys
 from ui.screens import (main_menu, bot_selector, post_game_screen,
-                        history_screen, ladder_screen, fonts)
+                        history_screen, ladder_screen,
+                        user_login_screen, fonts)
 from ui.board_ui import run_game
 from game.analysis import analyse_game
 
@@ -12,17 +14,20 @@ def main():
     pygame.display.set_caption("ChessTrainer")
     f = fonts()
 
+    # Login first
+    username = user_login_screen(screen, f)
+
     while True:
-        action = main_menu(screen, f)
+        action = main_menu(screen, f, username)
 
         if action == "quit":
             break
 
         elif action == "history":
-            history_screen(screen, f)
+            history_screen(screen, f, username)
 
         elif action == "ladder":
-            result = ladder_screen(screen, f)
+            result = ladder_screen(screen, f, username)
             if isinstance(result, tuple) and result[0] == "play":
                 cfg = result[1]
                 game_result, move_history = run_game(
@@ -36,7 +41,7 @@ def main():
                                             player_colour="white")
                     post_game_screen(screen, f, game_result,
                                      cfg["bot_name"], cfg["bot_elo"],
-                                     cfg["style"], analysis)
+                                     cfg["style"], analysis, username)
 
         elif action == "play":
             cfg = bot_selector(screen, f)
@@ -53,7 +58,10 @@ def main():
                                             player_colour="white")
                     post_game_screen(screen, f, game_result,
                                      bot_name, bot_elo,
-                                     style, analysis)
+                                     style, analysis, username)
+
+        elif action == "switch":
+            username = user_login_screen(screen, f)
 
     pygame.quit()
 

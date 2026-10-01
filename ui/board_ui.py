@@ -2,6 +2,7 @@
 # Pygame chessboard rendering and mouse input handling
 
 import os
+import sys
 import pygame
 from engine.board import Board, EMPTY
 from engine.moves import get_legal_moves
@@ -18,6 +19,8 @@ DARK_SQUARE   = (181, 136,  99)
 HIGHLIGHT     = (186, 202,  68)
 LEGAL_DOT     = (100, 100, 100)
 TEXT_COLOUR   = (30,  30,  30)
+LAST_MOVE     = (205, 210, 106)   # yellow tint — last move highlight
+CAPTURE_HINT  = (220,  80,  80)   # red — legal capture squares
 
 # Map board piece characters to asset filenames
 PIECE_FILES = {
@@ -35,7 +38,6 @@ def load_pieces(size: int) -> dict:
     """Load and scale all piece PNGs into Pygame surfaces."""
     pieces = {}
     for piece, filename in PIECE_FILES.items():
-        # Load PNG directly
         png_path = os.path.join(ASSETS_DIR,
                                 filename.replace(".svg", ".png"))
         surface  = pygame.image.load(png_path).convert_alpha()
@@ -60,38 +62,66 @@ def pixel_to_square(x: int, y: int):
     return -1
 
 
-def draw_board(screen: pygame.Surface, selected: int, legal_targets: list):
-    """Draw squares, highlights and legal move indicators."""
+def draw_board(screen: pygame.Surface, selected: int,
+               legal_targets: list, last_move: tuple = None,
+               board: Board = None):
+    """Draw squares, highlights, legal move dots and last move."""
     for rank in range(8):
         for file in range(8):
             square = rank * 8 + file
             x = file * SQUARE_SIZE
             y = rank * SQUARE_SIZE
 
+            # Base colour
             if (rank + file) % 2 == 0:
                 colour = LIGHT_SQUARE
             else:
                 colour = DARK_SQUARE
 
+            # Last move highlight (yellow tint)
+            if last_move is not None and square in (last_move[0], last_move[1]):
+                colour = LAST_MOVE
+
+            # Selected square
             if square == selected:
                 colour = HIGHLIGHT
 
             pygame.draw.rect(screen, colour,
                              (x, y, SQUARE_SIZE, SQUARE_SIZE))
 
-            # Legal move dot
+            # Legal move indicators
             if square in legal_targets:
-                cx = x + SQUARE_SIZE // 2
-                cy = y + SQUARE_SIZE // 2
-                dot_surf = pygame.Surface((SQUARE_SIZE, SQUARE_SIZE),
-                                          pygame.SRCALPHA)
-                pygame.draw.circle(dot_surf, (0, 0, 0, 60),
-                                   (SQUARE_SIZE // 2, SQUARE_SIZE // 2), 12)
-                screen.blit(dot_surf, (x, y))
+                is_capture = (board is not None and
+                              not board.is_empty(square) and
+                              board.is_enemy(square, board.turn))
+
+                if is_capture:
+                    # Red corners for capture squares
+                    corner = 10
+                    pygame.draw.rect(screen, CAPTURE_HINT,
+                                     (x, y, corner, corner))
+                    pygame.draw.rect(screen, CAPTURE_HINT,
+                                     (x + SQUARE_SIZE - corner, y,
+                                      corner, corner))
+                    pygame.draw.rect(screen, CAPTURE_HINT,
+                                     (x, y + SQUARE_SIZE - corner,
+                                      corner, corner))
+                    pygame.draw.rect(screen, CAPTURE_HINT,
+                                     (x + SQUARE_SIZE - corner,
+                                      y + SQUARE_SIZE - corner,
+                                      corner, corner))
+                else:
+                    # Grey dot for normal move
+                    dot_surf = pygame.Surface(
+                        (SQUARE_SIZE, SQUARE_SIZE), pygame.SRCALPHA)
+                    pygame.draw.circle(dot_surf, (0, 0, 0, 60),
+                                       (SQUARE_SIZE // 2,
+                                        SQUARE_SIZE // 2), 12)
+                    screen.blit(dot_surf, (x, y))
 
 
 def draw_pieces(screen: pygame.Surface, board: Board, pieces: dict):
-    """Draw all pieces using loaded SVG images."""
+    """Draw all pieces using loaded PNG images."""
     for square in range(64):
         piece = board.get(square)
         if piece == EMPTY:
@@ -121,8 +151,6 @@ def run_game(depth: int = 2, weights: dict = None,
     clock  = pygame.time.Clock()
 
     font_small = pygame.font.SysFont("Arial", 13)
-
-    # Load piece images
     piece_size = SQUARE_SIZE - 4
     pieces     = load_pieces(piece_size)
 
@@ -134,8 +162,9 @@ def run_game(depth: int = 2, weights: dict = None,
     game_over     = False
     move_history  = []
     final_result  = None
-    engine_turn   = False   # flag to trigger engine move on next frame
-    engine_delay  = 0       # tick count for delay
+    last_move     = None
+    engine_turn   = False
+    engine_delay  = 0
 
     while running:
         # ── Events ──────────────────────────────────────────────
@@ -145,7 +174,7 @@ def run_game(depth: int = 2, weights: dict = None,
 
             if event.type == pygame.MOUSEBUTTONDOWN and not game_over:
                 if board.turn == player_colour:
-                    x, y = pygame.mouse.get_pos()
+                    x, y  = pygame.mouse.get_pos()
                     clicked = pixel_to_square(x, y)
                     if clicked == -1:
                         continue
@@ -155,7 +184,7 @@ def run_game(depth: int = 2, weights: dict = None,
                     if selected == -1:
                         if (not board.is_empty(clicked) and
                                 board.is_friendly(clicked, board.turn)):
-                            selected = clicked
+                            selected      = clicked
                             legal_targets = [to for (fr, to)
                                              in legal_moves if fr == clicked]
                     else:
@@ -163,17 +192,18 @@ def run_game(depth: int = 2, weights: dict = None,
                         if move in legal_moves:
                             make_move(board, move)
                             move_history.append(move)
-                            selected = -1
+                            last_move     = move
+                            selected      = -1
                             legal_targets = []
                             engine_delay  = pygame.time.get_ticks() + 600
                             engine_turn   = True
                         elif (not board.is_empty(clicked) and
                               board.is_friendly(clicked, board.turn)):
-                            selected = clicked
+                            selected      = clicked
                             legal_targets = [to for (fr, to)
                                              in legal_moves if fr == clicked]
                         else:
-                            selected = -1
+                            selected      = -1
                             legal_targets = []
 
         # ── Engine move (after delay) ────────────────────────────
@@ -193,34 +223,77 @@ def run_game(depth: int = 2, weights: dict = None,
                 if move:
                     make_move(board, move)
                     move_history.append(move)
+                    last_move = move
 
         # ── Game over check ──────────────────────────────────────
         if not game_over:
-            if not get_legal_moves(board) and board.turn == player_colour:
-                message = "Checkmate — engine wins!"
-                final_result = "loss"
-                game_over = True
-            elif not get_legal_moves(board) and board.turn != player_colour:
-                message = "Checkmate — you win!"
-                final_result = "win"
+            legal = get_legal_moves(board)
+            if not legal:
+                if board.turn == player_colour:
+                    final_result = "loss"
+                    message      = "Checkmate — Engine wins!"
+                else:
+                    final_result = "win"
+                    message      = "Checkmate — You win!"
                 game_over = True
 
         # ── Draw ─────────────────────────────────────────────────
         screen.fill((0, 0, 0))
-        draw_board(screen, selected, legal_targets)
+        draw_board(screen, selected, legal_targets, last_move, board)  # ← fixed
         draw_pieces(screen, board, pieces)
         draw_labels(screen, font_small)
 
         if message:
             pygame.display.set_caption(f"ChessTrainer  |  {message}")
         elif not engine_turn and board.turn == player_colour:
-            pygame.display.set_caption(
-                "ChessTrainer  |  Your turn")
+            pygame.display.set_caption("ChessTrainer  |  Your turn")
 
         pygame.display.flip()
         clock.tick(30)
 
-    pygame.quit()
+        # ── Game over overlay ────────────────────────────────────
+        if game_over and final_result:
+            overlay = pygame.Surface((WINDOW_WIDTH, WINDOW_HEIGHT),
+                                     pygame.SRCALPHA)
+            overlay.fill((0, 0, 0, 160))
+            screen.blit(overlay, (0, 0))
+
+            font_big  = pygame.font.SysFont("Arial", 42, bold=True)
+            font_med  = pygame.font.SysFont("Arial", 22)
+
+            colour = ((60, 160, 60)  if final_result == "win"  else
+                      (180, 60, 60)  if final_result == "loss" else
+                      (181, 136, 99))
+            text      = font_big.render(message, True, colour)
+            text_rect = text.get_rect(center=(WINDOW_WIDTH // 2, 240))
+            screen.blit(text, text_rect)
+
+            btn_rect = pygame.Rect(220, 320, 200, 50)
+            hover    = btn_rect.collidepoint(pygame.mouse.get_pos())
+            btn_col  = (100, 100, 100) if hover else (60, 60, 60)
+            pygame.draw.rect(screen, btn_col,  btn_rect, border_radius=8)
+            pygame.draw.rect(screen, (181, 136, 99), btn_rect, 2,
+                             border_radius=8)
+            btn_text      = font_med.render("Continue", True, (255, 255, 255))
+            btn_text_rect = btn_text.get_rect(center=btn_rect.center)
+            screen.blit(btn_text, btn_text_rect)
+
+            pygame.display.flip()
+
+            waiting = True
+            while waiting:
+                for event in pygame.event.get():
+                    if event.type == pygame.QUIT:
+                        pygame.quit()
+                        sys.exit()
+                    if event.type == pygame.MOUSEBUTTONDOWN:
+                        if btn_rect.collidepoint(pygame.mouse.get_pos()):
+                            waiting = False
+
+            if return_result:
+                return final_result, move_history
+            return None, []
+
     if return_result:
         return final_result, move_history
     return None, []

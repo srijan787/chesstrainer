@@ -1,7 +1,7 @@
 {
-  "rating": 1221.8,
-  "games_played": 2,
-  "wins": 2,
+  "rating": 1269.2,
+  "games_played": 7,
+  "wins": 7,
   "losses": 0,
   "draws": 0,
   "history": [
@@ -24,6 +24,56 @@
       "rating_before": 1211.1,
       "rating_after": 1221.8,
       "change": 10.7
+    },
+    {
+      "date": "2026-10-01 15:15",
+      "bot": "aggressive_easy",
+      "bot_elo": 1091,
+      "style": "aggressive",
+      "result": "win",
+      "rating_before": 1221.8,
+      "rating_after": 1232.0,
+      "change": 10.2
+    },
+    {
+      "date": "2026-10-01 15:19",
+      "bot": "aggressive_easy",
+      "bot_elo": 1091,
+      "style": "aggressive",
+      "result": "win",
+      "rating_before": 1232.0,
+      "rating_after": 1241.8,
+      "change": 9.8
+    },
+    {
+      "date": "2026-10-01 15:26",
+      "bot": "aggressive_easy",
+      "bot_elo": 1091,
+      "style": "aggressive",
+      "result": "win",
+      "rating_before": 1241.8,
+      "rating_after": 1251.3,
+      "change": 9.5
+    },
+    {
+      "date": "2026-10-01 15:36",
+      "bot": "aggressive_easy",
+      "bot_elo": 1091,
+      "style": "aggressive",
+      "result": "win",
+      "rating_before": 1251.3,
+      "rating_after": 1260.4,
+      "change": 9.1
+    },
+    {
+      "date": "2026-10-01 15:40",
+      "bot": "aggressive_easy",
+      "bot_elo": 1091,
+      "style": "aggressive",
+      "result": "win",
+      "rating_before": 1260.4,
+      "rating_after": 1269.2,
+      "change": 8.8
     }
   ],
   "rating_history": [
@@ -38,6 +88,26 @@
     {
       "rating": 1221.8,
       "date": "2026-09-08 14:12"
+    },
+    {
+      "rating": 1232.0,
+      "date": "2026-10-01 15:15"
+    },
+    {
+      "rating": 1241.8,
+      "date": "2026-10-01 15:19"
+    },
+    {
+      "rating": 1251.3,
+      "date": "2026-10-01 15:26"
+    },
+    {
+      "rating": 1260.4,
+      "date": "2026-10-01 15:36"
+    },
+    {
+      "rating": 1269.2,
+      "date": "2026-10-01 15:40"
     }
   ],
   "completed_rungs": [

@@ -1,71 +1,73 @@
 # game/rating.py
-# Tracks the player's ELO rating over time.
-# Updates rating after each game using the standard ELO formula.
-# Stores history in data/player_data.json
+# Tracks each user's ELO rating and game history.
+# Each user has their own file in data/users/<username>.json
 
 import json
 import os
+import hashlib
 from datetime import datetime
 
-BASE_DIR         = os.path.dirname(os.path.dirname(__file__))
-PLAYER_DATA_FILE = os.path.join(BASE_DIR, "data", "player_data.json")
+BASE_DIR   = os.path.dirname(os.path.dirname(__file__))
+USERS_DIR  = os.path.join(BASE_DIR, "data", "users")
 
-# Starting ELO for a new player
 DEFAULT_RATING = 1200
-K_FACTOR       = 32   # how much each game affects rating
+K_FACTOR       = 32
+
+
+# ── PIN hashing ───────────────────────────────────────────────
+
+def hash_pin(pin: str) -> str:
+    """Hash a PIN so we never store it in plain text."""
+    return hashlib.sha256(pin.encode()).hexdigest()
 
 
 # ── ELO math ──────────────────────────────────────────────────
 
 def expected_score(player_elo: float, opponent_elo: float) -> float:
-    """Expected score for player against opponent."""
     return 1.0 / (1.0 + 10 ** ((opponent_elo - player_elo) / 400))
 
 
 def new_rating(player_elo: float, opponent_elo: float,
                result: str) -> float:
-    """
-    Calculate new player ELO after a game.
-    result: 'win', 'loss', or 'draw'
-    """
     actual = {"win": 1.0, "draw": 0.5, "loss": 0.0}[result]
     exp    = expected_score(player_elo, opponent_elo)
     return round(player_elo + K_FACTOR * (actual - exp), 1)
 
 
-# ── Player data ───────────────────────────────────────────────
+# ── User file helpers ─────────────────────────────────────────
 
-def load_player_data() -> dict:
-    """Load player data from file. Creates default if not found."""
-    if not os.path.exists(PLAYER_DATA_FILE):
-        return _default_player_data()
-    with open(PLAYER_DATA_FILE, "r") as f:
-        data = json.load(f)
-    # Handle empty file
-    if not data:
-        return _default_player_data()
-    return data
+def user_file(username: str) -> str:
+    """Return path to a user's data file."""
+    os.makedirs(USERS_DIR, exist_ok=True)
+    return os.path.join(USERS_DIR, f"{username.lower()}.json")
 
 
-def save_player_data(data: dict):
-    """Save player data to file."""
-    os.makedirs(os.path.dirname(PLAYER_DATA_FILE), exist_ok=True)
-    with open(PLAYER_DATA_FILE, "w") as f:
-        json.dump(data, f, indent=2)
+def user_exists(username: str) -> bool:
+    return os.path.exists(user_file(username))
 
 
-def _default_player_data() -> dict:
-    """Return a fresh player data structure."""
+def get_all_users() -> list:
+    """Return list of all registered usernames."""
+    os.makedirs(USERS_DIR, exist_ok=True)
+    return [f.replace(".json", "")
+            for f in os.listdir(USERS_DIR)
+            if f.endswith(".json")]
+
+
+def _default_data(username: str, pin: str) -> dict:
     return {
-        "rating":       DEFAULT_RATING,
-        "games_played": 0,
-        "wins":         0,
-        "losses":       0,
-        "draws":        0,
-        "history":      [],   # list of game records
-        "rating_history": [   # for plotting progress chart
+        "username":       username,
+        "pin_hash":       hash_pin(pin),
+        "rating":         DEFAULT_RATING,
+        "games_played":   0,
+        "wins":           0,
+        "losses":         0,
+        "draws":          0,
+        "history":        [],
+        "rating_history": [
             {"rating": DEFAULT_RATING, "date": _today()}
         ],
+        "completed_rungs": [],
     }
 
 
@@ -73,66 +75,85 @@ def _today() -> str:
     return datetime.now().strftime("%Y-%m-%d %H:%M")
 
 
-# ── Record a game ─────────────────────────────────────────────
+# ── User management ───────────────────────────────────────────
 
-def record_game(bot_name: str, bot_elo: int,
-                bot_style: str, result: str) -> dict:
+def create_user(username: str, pin: str) -> bool:
     """
-    Record a completed game and update player rating.
-
-    bot_name:  e.g. 'aggressive_hard'
-    bot_elo:   calibrated ELO of the bot
-    bot_style: 'aggressive', 'defensive', or 'positional'
-    result:    'win', 'loss', or 'draw'
-
-    Returns updated player data dict.
+    Create a new user. Returns True if successful,
+    False if username already exists.
     """
-    data       = load_player_data()
+    if user_exists(username):
+        return False
+    data = _default_data(username, pin)
+    with open(user_file(username), "w") as f:
+        json.dump(data, f, indent=2)
+    return True
+
+
+def verify_pin(username: str, pin: str) -> bool:
+    """Return True if PIN matches stored hash."""
+    if not user_exists(username):
+        return False
+    with open(user_file(username)) as f:
+        data = json.load(f)
+    return data.get("pin_hash") == hash_pin(pin)
+
+
+def load_user(username: str) -> dict:
+    """Load a user's data. Raises FileNotFoundError if not found."""
+    with open(user_file(username)) as f:
+        return json.load(f)
+
+
+def save_user(data: dict):
+    """Save user data back to file."""
+    with open(user_file(data["username"]), "w") as f:
+        json.dump(data, f, indent=2)
+
+
+# ── Game recording ────────────────────────────────────────────
+
+def record_game(username: str, bot_name: str,
+                bot_elo: int, bot_style: str,
+                result: str) -> dict:
+    """Record a completed game and update player rating."""
+    data       = load_user(username)
     old_rating = data["rating"]
     updated    = new_rating(old_rating, bot_elo, result)
 
-    # Update counters
     data["rating"]       = updated
     data["games_played"] += 1
     if result == "win":
-        data["wins"]    += 1
+        data["wins"]   += 1
     elif result == "loss":
-        data["losses"]  += 1
+        data["losses"] += 1
     else:
-        data["draws"]   += 1
+        data["draws"]  += 1
 
-    # Add game record
     data["history"].append({
-        "date":       _today(),
-        "bot":        bot_name,
-        "bot_elo":    bot_elo,
-        "style":      bot_style,
-        "result":     result,
-        "rating_before": old_rating,
-        "rating_after":  updated,
-        "change":     round(updated - old_rating, 1),
+        "date":           _today(),
+        "bot":            bot_name,
+        "bot_elo":        bot_elo,
+        "style":          bot_style,
+        "result":         result,
+        "rating_before":  old_rating,
+        "rating_after":   updated,
+        "change":         round(updated - old_rating, 1),
     })
 
-    # Add to rating history for chart
     data["rating_history"].append({
         "rating": updated,
         "date":   _today(),
     })
 
-    save_player_data(data)
+    save_user(data)
     return data
 
 
-# ── Display helpers ───────────────────────────────────────────
+# ── Stats helpers ─────────────────────────────────────────────
 
-def get_rating() -> float:
-    """Return current player rating."""
-    return load_player_data()["rating"]
-
-
-def get_stats() -> dict:
-    """Return player stats summary."""
-    data = load_player_data()
+def get_stats(username: str) -> dict:
+    data = load_user(username)
     return {
         "rating":       data["rating"],
         "games_played": data["games_played"],
@@ -144,18 +165,26 @@ def get_stats() -> dict:
     }
 
 
-def get_rating_history() -> list:
-    """Return list of rating history entries for charting."""
-    return load_player_data()["rating_history"]
+def get_rating(username: str) -> float:
+    return load_user(username)["rating"]
 
 
-def get_recent_games(n: int = 10) -> list:
-    """Return the N most recent game records."""
-    history = load_player_data()["history"]
-    return history[-n:]
+def get_rating_history(username: str) -> list:
+    return load_user(username)["rating_history"]
 
 
-def reset_player_data():
-    """Reset all player data back to defaults."""
-    save_player_data(_default_player_data())
-    print("Player data reset.")
+def get_recent_games(username: str, n: int = 10) -> list:
+    return load_user(username)["history"][-n:]
+
+
+def get_completed_rungs(username: str) -> list:
+    return load_user(username).get("completed_rungs", [])
+
+
+def mark_rung_complete(username: str, rung: int):
+    data = load_user(username)
+    if "completed_rungs" not in data:
+        data["completed_rungs"] = []
+    if rung not in data["completed_rungs"]:
+        data["completed_rungs"].append(rung)
+    save_user(data)

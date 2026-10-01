@@ -1,0 +1,17 @@
+{
+  "username": "samir",
+  "pin_hash": "03ac674216f3e15c761ee1a5e255f067953623c8b388b4459e13f978d7c846f4",
+  "rating": 1200,
+  "games_played": 0,
+  "wins": 0,
+  "losses": 0,
+  "draws": 0,
+  "history": [],
+  "rating_history": [
+    {
+      "rating": 1200,
+      "date": "2026-10-01 15:48"
+    }
+  ],
+  "completed_rungs": []
+}
