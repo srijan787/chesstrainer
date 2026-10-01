@@ -1,14 +1,46 @@
 {
-  "rating": 1200,
-  "games_played": 0,
-  "wins": 0,
+  "rating": 1221.8,
+  "games_played": 2,
+  "wins": 2,
   "losses": 0,
   "draws": 0,
-  "history": [],
+  "history": [
+    {
+      "date": "2026-09-06 19:38",
+      "bot": "aggressive_easy",
+      "bot_elo": 1091,
+      "style": "aggressive",
+      "result": "win",
+      "rating_before": 1200,
+      "rating_after": 1211.1,
+      "change": 11.1
+    },
+    {
+      "date": "2026-09-08 14:12",
+      "bot": "aggressive_easy",
+      "bot_elo": 1091,
+      "style": "aggressive",
+      "result": "win",
+      "rating_before": 1211.1,
+      "rating_after": 1221.8,
+      "change": 10.7
+    }
+  ],
   "rating_history": [
     {
       "rating": 1200,
       "date": "2026-09-06 19:26"
+    },
+    {
+      "rating": 1211.1,
+      "date": "2026-09-06 19:38"
+    },
+    {
+      "rating": 1221.8,
+      "date": "2026-09-08 14:12"
     }
+  ],
+  "completed_rungs": [
+    1
   ]
 }

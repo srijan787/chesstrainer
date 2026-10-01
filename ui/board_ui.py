@@ -112,7 +112,8 @@ def draw_labels(screen: pygame.Surface, font: pygame.font.Font):
 
 
 def run_game(depth: int = 2, weights: dict = None,
-             imprecision: float = 0.0, player_colour: str = "white"):
+             imprecision: float = 0.0, player_colour: str = "white",
+             return_result: bool = False):
     """Main game loop."""
     pygame.init()
     screen = pygame.display.set_mode((WINDOW_WIDTH, WINDOW_HEIGHT))
@@ -131,6 +132,8 @@ def run_game(depth: int = 2, weights: dict = None,
     message       = ""
     running       = True
     game_over     = False
+    move_history  = []
+    final_result  = None
     engine_turn   = False   # flag to trigger engine move on next frame
     engine_delay  = 0       # tick count for delay
 
@@ -159,6 +162,7 @@ def run_game(depth: int = 2, weights: dict = None,
                         move = (selected, clicked)
                         if move in legal_moves:
                             make_move(board, move)
+                            move_history.append(move)
                             selected = -1
                             legal_targets = []
                             engine_delay  = pygame.time.get_ticks() + 600
@@ -188,11 +192,17 @@ def run_game(depth: int = 2, weights: dict = None,
                                       imprecision=imprecision)
                 if move:
                     make_move(board, move)
+                    move_history.append(move)
 
         # ── Game over check ──────────────────────────────────────
         if not game_over:
             if not get_legal_moves(board) and board.turn == player_colour:
-                message   = "Checkmate — engine wins!"
+                message = "Checkmate — engine wins!"
+                final_result = "loss"
+                game_over = True
+            elif not get_legal_moves(board) and board.turn != player_colour:
+                message = "Checkmate — you win!"
+                final_result = "win"
                 game_over = True
 
         # ── Draw ─────────────────────────────────────────────────
@@ -211,3 +221,6 @@ def run_game(depth: int = 2, weights: dict = None,
         clock.tick(30)
 
     pygame.quit()
+    if return_result:
+        return final_result, move_history
+    return None, []
