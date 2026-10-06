@@ -5,7 +5,6 @@ from ui.screens import (main_menu, bot_selector, post_game_screen,
                         history_screen, ladder_screen,
                         user_login_screen, fonts)
 from ui.board_ui import run_game
-from game.analysis import analyse_game
 
 
 def main():
@@ -26,6 +25,9 @@ def main():
         elif action == "history":
             history_screen(screen, f, username)
 
+        elif action == "switch":
+            username = user_login_screen(screen, f)
+
         elif action == "ladder":
             result = ladder_screen(screen, f, username)
             if isinstance(result, tuple) and result[0] == "play":
@@ -37,11 +39,9 @@ def main():
                     return_result=True
                 )
                 if game_result:
-                    analysis = analyse_game(move_history,
-                                            player_colour="white")
                     post_game_screen(screen, f, game_result,
                                      cfg["bot_name"], cfg["bot_elo"],
-                                     cfg["style"], analysis, username)
+                                     cfg["style"], move_history, username)
 
         elif action == "play":
             cfg = bot_selector(screen, f)
@@ -54,14 +54,9 @@ def main():
                     return_result=True
                 )
                 if game_result:
-                    analysis = analyse_game(move_history,
-                                            player_colour="white")
                     post_game_screen(screen, f, game_result,
                                      bot_name, bot_elo,
-                                     style, analysis, username)
-
-        elif action == "switch":
-            username = user_login_screen(screen, f)
+                                     style, move_history, username)
 
     pygame.quit()
 

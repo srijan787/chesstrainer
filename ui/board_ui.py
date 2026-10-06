@@ -4,8 +4,8 @@
 import os
 import sys
 import pygame
-from engine.board import Board, EMPTY
-from engine.moves import get_legal_moves
+from engine.board import Board, EMPTY, WK, BK
+from engine.moves import get_legal_moves, is_in_check
 from engine.search import find_best_move, make_move
 
 # ── Constants ─────────────────────────────────────────────────
@@ -19,10 +19,10 @@ DARK_SQUARE   = (181, 136,  99)
 HIGHLIGHT     = (186, 202,  68)
 LEGAL_DOT     = (100, 100, 100)
 TEXT_COLOUR   = (30,  30,  30)
-LAST_MOVE     = (205, 210, 106)   # yellow tint — last move highlight
-CAPTURE_HINT  = (220,  80,  80)   # red — legal capture squares
+LAST_MOVE     = (205, 210, 106)   # yellow — last move
+CAPTURE_HINT  = (220,  80,  80)   # red corners — capture square
+CHECK_COLOUR  = (220,  50,  50)   # red — king in check
 
-# Map board piece characters to asset filenames
 PIECE_FILES = {
     "K": "wK.svg", "Q": "wQ.svg", "R": "wR.svg",
     "B": "wB.svg", "N": "wN.svg", "P": "wP.svg",
@@ -35,11 +35,9 @@ ASSETS_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)),
 
 
 def load_pieces(size: int) -> dict:
-    """Load and scale all piece PNGs into Pygame surfaces."""
     pieces = {}
     for piece, filename in PIECE_FILES.items():
-        png_path = os.path.join(ASSETS_DIR,
-                                filename.replace(".svg", ".png"))
+        png_path = os.path.join(ASSETS_DIR, filename.replace(".svg", ".png"))
         surface  = pygame.image.load(png_path).convert_alpha()
         surface  = pygame.transform.smoothscale(surface, (size, size))
         pieces[piece] = surface
@@ -47,14 +45,12 @@ def load_pieces(size: int) -> dict:
 
 
 def square_to_pixel(square: int):
-    """Convert square index to top-left pixel."""
     file = square % 8
     rank = square // 8
     return file * SQUARE_SIZE, rank * SQUARE_SIZE
 
 
 def pixel_to_square(x: int, y: int):
-    """Convert pixel position to square index."""
     file = x // SQUARE_SIZE
     rank = y // SQUARE_SIZE
     if 0 <= file < 8 and 0 <= rank < 8:
@@ -62,10 +58,19 @@ def pixel_to_square(x: int, y: int):
     return -1
 
 
+def find_king_square(board: Board, turn: str) -> int:
+    """Return the square index of the given side's king."""
+    king = WK if turn == "white" else BK
+    for sq in range(64):
+        if board.get(sq) == king:
+            return sq
+    return -1
+
+
 def draw_board(screen: pygame.Surface, selected: int,
                legal_targets: list, last_move: tuple = None,
-               board: Board = None):
-    """Draw squares, highlights, legal move dots and last move."""
+               board: Board = None, king_in_check: int = -1):
+    """Draw squares with highlights, legal moves, last move, and check."""
     for rank in range(8):
         for file in range(8):
             square = rank * 8 + file
@@ -78,9 +83,13 @@ def draw_board(screen: pygame.Surface, selected: int,
             else:
                 colour = DARK_SQUARE
 
-            # Last move highlight (yellow tint)
+            # Last move highlight
             if last_move is not None and square in (last_move[0], last_move[1]):
                 colour = LAST_MOVE
+
+            # King in check — override with red
+            if square == king_in_check:
+                colour = CHECK_COLOUR
 
             # Selected square
             if square == selected:
@@ -94,9 +103,7 @@ def draw_board(screen: pygame.Surface, selected: int,
                 is_capture = (board is not None and
                               not board.is_empty(square) and
                               board.is_enemy(square, board.turn))
-
                 if is_capture:
-                    # Red corners for capture squares
                     corner = 10
                     pygame.draw.rect(screen, CAPTURE_HINT,
                                      (x, y, corner, corner))
@@ -111,7 +118,6 @@ def draw_board(screen: pygame.Surface, selected: int,
                                       y + SQUARE_SIZE - corner,
                                       corner, corner))
                 else:
-                    # Grey dot for normal move
                     dot_surf = pygame.Surface(
                         (SQUARE_SIZE, SQUARE_SIZE), pygame.SRCALPHA)
                     pygame.draw.circle(dot_surf, (0, 0, 0, 60),
@@ -121,7 +127,6 @@ def draw_board(screen: pygame.Surface, selected: int,
 
 
 def draw_pieces(screen: pygame.Surface, board: Board, pieces: dict):
-    """Draw all pieces using loaded PNG images."""
     for square in range(64):
         piece = board.get(square)
         if piece == EMPTY:
@@ -131,7 +136,6 @@ def draw_pieces(screen: pygame.Surface, board: Board, pieces: dict):
 
 
 def draw_labels(screen: pygame.Surface, font: pygame.font.Font):
-    """Draw rank numbers and file letters."""
     files = "abcdefgh"
     for i in range(8):
         label = font.render(files[i], True, TEXT_COLOUR)
@@ -163,10 +167,20 @@ def run_game(depth: int = 2, weights: dict = None,
     move_history  = []
     final_result  = None
     last_move     = None
+    king_in_check = -1   # square of king in check, -1 if not in check
     engine_turn   = False
     engine_delay  = 0
 
     while running:
+        # ── Check detection ──────────────────────────────────
+        # Update king_in_check every frame so it always reflects
+        # the current board state
+        if not game_over:
+            if is_in_check(board, board.turn):
+                king_in_check = find_king_square(board, board.turn)
+            else:
+                king_in_check = -1
+
         # ── Events ──────────────────────────────────────────────
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -174,7 +188,7 @@ def run_game(depth: int = 2, weights: dict = None,
 
             if event.type == pygame.MOUSEBUTTONDOWN and not game_over:
                 if board.turn == player_colour:
-                    x, y  = pygame.mouse.get_pos()
+                    x, y    = pygame.mouse.get_pos()
                     clicked = pixel_to_square(x, y)
                     if clicked == -1:
                         continue
@@ -206,13 +220,12 @@ def run_game(depth: int = 2, weights: dict = None,
                             selected      = -1
                             legal_targets = []
 
-        # ── Engine move (after delay) ────────────────────────────
+        # ── Engine move ──────────────────────────────────────────
         if (engine_turn and not game_over and
                 pygame.time.get_ticks() >= engine_delay):
             engine_turn = False
             legal_moves = get_legal_moves(board)
             if not legal_moves:
-                message   = "Game over."
                 game_over = True
             else:
                 pygame.display.set_caption(
@@ -239,11 +252,15 @@ def run_game(depth: int = 2, weights: dict = None,
 
         # ── Draw ─────────────────────────────────────────────────
         screen.fill((0, 0, 0))
-        draw_board(screen, selected, legal_targets, last_move, board)  # ← fixed
+        draw_board(screen, selected, legal_targets,
+                   last_move, board, king_in_check)
         draw_pieces(screen, board, pieces)
         draw_labels(screen, font_small)
 
-        if message:
+        # Check warning in title bar
+        if king_in_check != -1 and not game_over:
+            pygame.display.set_caption("ChessTrainer  |  CHECK!")
+        elif message:
             pygame.display.set_caption(f"ChessTrainer  |  {message}")
         elif not engine_turn and board.turn == player_colour:
             pygame.display.set_caption("ChessTrainer  |  Your turn")
@@ -253,13 +270,13 @@ def run_game(depth: int = 2, weights: dict = None,
 
         # ── Game over overlay ────────────────────────────────────
         if game_over and final_result:
-            overlay = pygame.Surface((WINDOW_WIDTH, WINDOW_HEIGHT),
-                                     pygame.SRCALPHA)
+            overlay   = pygame.Surface((WINDOW_WIDTH, WINDOW_HEIGHT),
+                                       pygame.SRCALPHA)
             overlay.fill((0, 0, 0, 160))
             screen.blit(overlay, (0, 0))
 
-            font_big  = pygame.font.SysFont("Arial", 42, bold=True)
-            font_med  = pygame.font.SysFont("Arial", 22)
+            font_big = pygame.font.SysFont("Arial", 42, bold=True)
+            font_med = pygame.font.SysFont("Arial", 22)
 
             colour = ((60, 160, 60)  if final_result == "win"  else
                       (180, 60, 60)  if final_result == "loss" else
@@ -284,8 +301,7 @@ def run_game(depth: int = 2, weights: dict = None,
             while waiting:
                 for event in pygame.event.get():
                     if event.type == pygame.QUIT:
-                        pygame.quit()
-                        sys.exit()
+                        pygame.quit(); sys.exit()
                     if event.type == pygame.MOUSEBUTTONDOWN:
                         if btn_rect.collidepoint(pygame.mouse.get_pos()):
                             waiting = False

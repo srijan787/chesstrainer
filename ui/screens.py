@@ -13,7 +13,8 @@ from game.ladder import get_ladder_progress, check_and_award
 from ai.styles import load_all_styles, STYLE_INFO, get_style_description
 
 BASE_DIR  = os.path.dirname(os.path.dirname(__file__))
-DATA_FILE = os.path.join(BASE_DIR, "data", "elo_table.json")
+DATA_DIR  = os.path.join(BASE_DIR, "data")
+DATA_FILE = os.path.join(DATA_DIR, "elo_table.json")
 
 # ── Colours ───────────────────────────────────────────────────
 BLACK      = (0,   0,   0)
@@ -59,8 +60,8 @@ def draw_button(screen, text, font, x, y, w, h,
     if colour is None:
         colour = LIGHT_GREY
     col = tuple(min(255, c + 30) for c in colour) if hover else colour
-    pygame.draw.rect(screen, col,   (x, y, w, h), border_radius=8)
-    pygame.draw.rect(screen, ACCENT,(x, y, w, h), 2, border_radius=8)
+    pygame.draw.rect(screen, col,    (x, y, w, h), border_radius=8)
+    pygame.draw.rect(screen, ACCENT, (x, y, w, h), 2, border_radius=8)
     surf = font.render(str(text), True, text_colour)
     rect = surf.get_rect(center=(x + w // 2, y + h // 2))
     screen.blit(surf, rect)
@@ -74,7 +75,34 @@ def load_elo_table() -> dict:
         return json.load(f)
 
 
-# ── User login / register screen ──────────────────────────────
+def confirm_dialog(screen, f, message: str) -> bool:
+    """Show a simple Yes/No confirmation dialog. Returns True if Yes."""
+    clock = pygame.time.Clock()
+    overlay = pygame.Surface((W, H), pygame.SRCALPHA)
+    overlay.fill((0, 0, 0, 180))
+    while True:
+        mx, my = pygame.mouse.get_pos()
+        screen.blit(overlay, (0, 0))
+        pygame.draw.rect(screen, GREY, (120, 220, 400, 180), border_radius=12)
+        pygame.draw.rect(screen, ACCENT, (120, 220, 400, 180), 2, border_radius=12)
+        draw_text(screen, message, f["body"], WHITE, W // 2, 255, center=True)
+        yes_rect = draw_button(screen, "Yes", f["bold"], 160, 330, 140, 48,
+                               RED, hover=(160<=mx<=300 and 330<=my<=378))
+        no_rect  = draw_button(screen, "No",  f["bold"], 340, 330, 140, 48,
+                               GREEN, hover=(340<=mx<=480 and 330<=my<=378))
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit(); sys.exit()
+            if event.type == pygame.MOUSEBUTTONDOWN:
+                if yes_rect.collidepoint(mx, my):
+                    return True
+                if no_rect.collidepoint(mx, my):
+                    return False
+        pygame.display.flip()
+        clock.tick(30)
+
+
+# ── User login / register / delete screen ─────────────────────
 
 def user_login_screen(screen, f):
     """Show user selection. Returns username string."""
@@ -85,6 +113,7 @@ def user_login_screen(screen, f):
     pin         = ""
     error       = ""
     input_field = "username"
+    delete_mode = False   # True when user clicked delete on a profile
 
     while True:
         mx, my = pygame.mouse.get_pos()
@@ -98,14 +127,24 @@ def user_login_screen(screen, f):
                       f["body"], TEXT_DIM, W // 2, 100, center=True)
 
             users = get_all_users()
+            user_rects  = []
+            delete_rects = []
+
             if users:
                 draw_text(screen, "Existing profiles:",
                           f["bold"], WHITE, 60, 145)
                 for i, u in enumerate(users):
-                    y    = 175 + i * 52
-                    draw_button(screen, u.title(), f["body"],
-                                60, y, 380, 44, LIGHT_GREY,
-                                hover=(60 <= mx <= 440 and y <= my <= y + 44))
+                    y = 175 + i * 56
+                    # Profile button
+                    r = draw_button(screen, u.title(), f["body"],
+                                    60, y, 300, 44, LIGHT_GREY,
+                                    hover=(60<=mx<=360 and y<=my<=y+44))
+                    user_rects.append((r, u))
+                    # Delete button next to profile
+                    dr = draw_button(screen, "Delete", f["small"],
+                                     370, y, 80, 44, RED,
+                                     hover=(370<=mx<=450 and y<=my<=y+44))
+                    delete_rects.append((dr, u))
             else:
                 draw_text(screen, "No profiles yet — create one below.",
                           f["body"], TEXT_DIM, W // 2, 200, center=True)
@@ -129,11 +168,18 @@ def user_login_screen(screen, f):
                         pin         = ""
                         error       = ""
                         input_field = "username"
-                    users = get_all_users()
-                    for i, u in enumerate(users):
-                        y = 175 + i * 52
-                        if 60 <= mx <= 440 and y <= my <= y + 44:
+                    # Profile click — go to login
+                    for r, u in user_rects:
+                        if r.collidepoint(mx, my):
                             mode        = "login"
+                            username    = u
+                            pin         = ""
+                            error       = ""
+                            input_field = "pin"
+                    # Delete click — go to delete confirm
+                    for dr, u in delete_rects:
+                        if dr.collidepoint(mx, my):
+                            mode        = "delete"
                             username    = u
                             pin         = ""
                             error       = ""
@@ -185,6 +231,63 @@ def user_login_screen(screen, f):
                     if back_rect.collidepoint(mx, my):
                         mode  = "select"
                         error = ""
+
+        # ── DELETE (PIN confirm then delete) ─────────────────
+        elif mode == "delete":
+            draw_text(screen, f"Delete profile: {username.title()}",
+                      f["heading"], RED, W // 2, 110, center=True)
+            draw_text(screen, "Enter your PIN to confirm deletion:",
+                      f["body"], TEXT_DIM, W // 2, 165, center=True)
+
+            box_col = ACCENT if input_field == "pin" else LIGHT_GREY
+            pygame.draw.rect(screen, box_col, (170, 200, 300, 48),
+                             border_radius=8)
+            draw_text(screen, "●" * len(pin), f["heading"],
+                      WHITE, W // 2, 208, center=True)
+
+            draw_text(screen, "This will permanently delete all your",
+                      f["small"], TEXT_DIM, W // 2, 268, center=True)
+            draw_text(screen, "game history and rating. Cannot be undone.",
+                      f["small"], RED, W // 2, 286, center=True)
+
+            if error:
+                draw_text(screen, error, f["body"],
+                          RED, W // 2, 310, center=True)
+
+            del_rect  = draw_button(screen, "Delete Profile", f["bold"],
+                                    170, 340, 300, 48, RED,
+                                    hover=(170<=mx<=470 and 340<=my<=388))
+            back_rect = draw_button(screen, "Cancel", f["bold"],
+                                    170, 405, 300, 44, LIGHT_GREY,
+                                    hover=(170<=mx<=470 and 405<=my<=449))
+
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    pygame.quit(); sys.exit()
+                if event.type == pygame.KEYDOWN:
+                    if event.key == pygame.K_BACKSPACE:
+                        pin = pin[:-1]
+                    elif event.unicode.isdigit() and len(pin) < 6:
+                        pin += event.unicode
+                if event.type == pygame.MOUSEBUTTONDOWN:
+                    if del_rect.collidepoint(mx, my):
+                        if verify_pin(username, pin):
+                            # Delete the user file
+                            from game.rating import user_file
+                            fp = user_file(username)
+                            if os.path.exists(fp):
+                                os.remove(fp)
+                            mode     = "select"
+                            pin      = ""
+                            error    = ""
+                            username = ""
+                        else:
+                            error = "Incorrect PIN."
+                            pin   = ""
+                    if back_rect.collidepoint(mx, my):
+                        mode  = "select"
+                        error = ""
+                        pin   = ""
 
         # ── REGISTER ─────────────────────────────────────────
         elif mode == "register":
@@ -411,25 +514,28 @@ def bot_selector(screen, f):
 
 def post_game_screen(screen, f, result: str, bot_name: str,
                      bot_elo: int, bot_style: str,
-                     analysis: list, username: str):
-    """Show result, rating change, analysis. Returns 'menu'."""
+                     move_history: list, username: str):
+    """
+    Ask user if they want analysis, then show result and optional analysis.
+    Returns 'menu'.
+    """
+    # Record game first
     data   = record_game(username, bot_name, bot_elo, bot_style, result)
     reward = check_and_award(username, bot_name, result)
     clock  = pygame.time.Clock()
-    scroll = 0
 
     result_colour = {"win": GREEN, "loss": RED, "draw": ACCENT}[result]
     result_text   = {"win": "You Win!", "loss": "You Lose",
                      "draw": "Draw"}[result]
-    analysis_text = format_analysis(analysis)
-    lines         = analysis_text.split("\n")
 
-    while True:
+    # ── Ask if user wants game review ────────────────────────
+    want_analysis = False
+    asking        = True
+    while asking:
         mx, my = pygame.mouse.get_pos()
         screen.fill(GREY)
-
         draw_text(screen, result_text, f["title"],
-                  result_colour, W // 2, 30, center=True)
+                  result_colour, W // 2, 80, center=True)
 
         if data["history"]:
             last   = data["history"][-1]
@@ -438,25 +544,79 @@ def post_game_screen(screen, f, result: str, bot_name: str,
             draw_text(screen,
                       f"Rating: {last['rating_before']} → "
                       f"{last['rating_after']}  ({sign}{change})",
-                      f["heading"], WHITE, W // 2, 90, center=True)
+                      f["heading"], WHITE, W // 2, 155, center=True)
 
         if reward:
             draw_text(screen, reward, f["small"],
-                      HIGHLIGHT, W // 2, 130, center=True)
+                      HIGHLIGHT, W // 2, 200, center=True)
 
-        y = 165 + scroll
+        draw_text(screen, "Would you like to review your game?",
+                  f["body"], TEXT_DIM, W // 2, 270, center=True)
+
+        yes_rect = draw_button(screen, "Yes — Review", f["bold"],
+                               100, 320, 180, 50, GREEN,
+                               hover=(100<=mx<=280 and 320<=my<=370))
+        no_rect  = draw_button(screen, "No — Main Menu", f["bold"],
+                               360, 320, 180, 50, LIGHT_GREY,
+                               hover=(360<=mx<=540 and 320<=my<=370))
+
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit(); sys.exit()
+            if event.type == pygame.MOUSEBUTTONDOWN:
+                if yes_rect.collidepoint(mx, my):
+                    want_analysis = True
+                    asking        = False
+                if no_rect.collidepoint(mx, my):
+                    want_analysis = False
+                    asking        = False
+
+        pygame.display.flip()
+        clock.tick(30)
+
+    if not want_analysis:
+        return "menu"
+
+    # ── Run analysis and show it ─────────────────────────────
+    # Show loading message while analysis runs
+    screen.fill(GREY)
+    draw_text(screen, "Analysing your game...",
+              f["heading"], TEXT_DIM, W // 2, H // 2 - 20, center=True)
+    draw_text(screen, "This may take a few seconds.",
+              f["small"], TEXT_DIM, W // 2, H // 2 + 20, center=True)
+    pygame.display.flip()
+
+    from game.analysis import analyse_game, format_analysis
+    analysis      = analyse_game(move_history, player_colour="white",
+                                 analysis_depth=2)
+    analysis_text = format_analysis(analysis)
+    lines         = analysis_text.split("\n")
+    scroll        = 0
+
+    while True:
+        mx, my = pygame.mouse.get_pos()
+        screen.fill(GREY)
+
+        draw_text(screen, "Game Review", f["heading"],
+                  ACCENT, W // 2, 20, center=True)
+        draw_text(screen, result_text, f["bold"],
+                  result_colour, W // 2, 58, center=True)
+
+        y = 90 + scroll
         for line in lines:
-            if 155 < y < H - 60:
+            if 80 < y < H - 60:
                 colour = WHITE if line.startswith("Move") else TEXT_DIM
                 if "??" in line:
                     colour = RED
                 elif "!?" in line:
                     colour = ACCENT
+                elif "Great game" in line or "No significant" in line:
+                    colour = GREEN
                 draw_text(screen, line, f["small"], colour, 20, y)
             y += 22
 
-        draw_text(screen, "↑↓ scroll analysis",
-                  f["small"], TEXT_DIM, W // 2, H - 48, center=True)
+        draw_text(screen, "↑↓ to scroll",
+                  f["small"], TEXT_DIM, W // 2, H - 46, center=True)
         menu_rect = draw_button(screen, "Main Menu", f["bold"],
                                 220, H - 40, 200, 36, LIGHT_GREY,
                                 hover=(220<=mx<=420 and H-40<=my<=H-4))
