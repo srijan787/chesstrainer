@@ -290,7 +290,7 @@ def run_game(depth: int = 2, weights: dict = None,
                             last_move     = move
                             selected      = -1
                             legal_targets = []
-                            engine_delay  = pygame.time.get_ticks() + 600
+                            engine_delay  = pygame.time.get_ticks() + 200
                             engine_turn   = True
                         elif (not board.is_empty(clicked) and
                               board.is_friendly(clicked, board.turn)):
@@ -313,7 +313,8 @@ def run_game(depth: int = 2, weights: dict = None,
                     "ChessTrainer  |  Engine thinking...")
                 move = find_best_move(board, depth=depth,
                                       weights=weights,
-                                      imprecision=imprecision)
+                                      imprecision=imprecision,
+                                      time_limit=2.0)
                 if move:
                     make_move(board, move)
                     move_history.append(move)

@@ -1,9 +1,9 @@
 {
   "username": "samir",
   "pin_hash": "03ac674216f3e15c761ee1a5e255f067953623c8b388b4459e13f978d7c846f4",
-  "rating": 1195.6,
-  "games_played": 4,
-  "wins": 2,
+  "rating": 1245.4,
+  "games_played": 7,
+  "wins": 5,
   "losses": 2,
   "draws": 0,
   "history": [
@@ -46,6 +46,36 @@
       "rating_before": 1181.0,
       "rating_after": 1195.6,
       "change": 14.6
+    },
+    {
+      "date": "2026-10-07 17:19",
+      "bot": "aggressive_easy",
+      "bot_elo": 1091,
+      "style": "aggressive",
+      "result": "win",
+      "rating_before": 1195.6,
+      "rating_after": 1206.9,
+      "change": 11.3
+    },
+    {
+      "date": "2026-10-07 17:29",
+      "bot": "aggressive_hard",
+      "bot_elo": 1293,
+      "style": "aggressive",
+      "result": "win",
+      "rating_before": 1206.9,
+      "rating_after": 1226.8,
+      "change": 19.9
+    },
+    {
+      "date": "2026-10-07 17:33",
+      "bot": "positional_expert",
+      "bot_elo": 1284,
+      "style": "positional",
+      "result": "win",
+      "rating_before": 1226.8,
+      "rating_after": 1245.4,
+      "change": 18.6
     }
   ],
   "rating_history": [
@@ -68,10 +98,23 @@
     {
       "rating": 1195.6,
       "date": "2026-10-07 13:32"
+    },
+    {
+      "rating": 1206.9,
+      "date": "2026-10-07 17:19"
+    },
+    {
+      "rating": 1226.8,
+      "date": "2026-10-07 17:29"
+    },
+    {
+      "rating": 1245.4,
+      "date": "2026-10-07 17:33"
     }
   ],
   "completed_rungs": [
     7,
-    4
+    4,
+    1
   ]
 }
