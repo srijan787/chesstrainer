@@ -8,7 +8,7 @@ import random
 from engine.board import Board, EMPTY
 from engine.moves import get_legal_moves
 from engine.evaluation import evaluate
-
+from engine.evaluation import BASE_VALUES
 
 def make_move(board: Board, move: tuple):
     """Apply a move to the board and update game state."""
@@ -127,6 +127,19 @@ def minimax(board: Board, depth: int, alpha: float, beta: float,
     Returns the best score achievable from this position.
     """
     legal_moves = get_legal_moves(board)
+
+    # Move ordering: score captures first, then other moves
+    # This dramatically improves alpha-beta pruning efficiency
+    def move_score(move):
+        target = board.get(move[1])
+        if target != EMPTY:
+            # MVV-LVA: Most Valuable Victim - Least Valuable Attacker
+            victim_val = abs(BASE_VALUES.get(target, 0))
+            attacker_val = abs(BASE_VALUES.get(board.get(move[0]), 0))
+            return victim_val - attacker_val // 10 + 10000
+        return 0
+
+    legal_moves = sorted(legal_moves, key=move_score, reverse=True)
 
     # Terminal conditions
     if depth == 0 or len(legal_moves) == 0:

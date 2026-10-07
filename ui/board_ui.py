@@ -144,10 +144,68 @@ def draw_labels(screen: pygame.Surface, font: pygame.font.Font):
         label = font.render(str(8 - i), True, TEXT_COLOUR)
         screen.blit(label, (2, i * SQUARE_SIZE + 2))
 
+def draw_pause_menu(screen: pygame.Surface) -> str:
+    """
+    Draw pause overlay. Returns:
+    'resume'  — continue the game
+    'resign'  — forfeit (counts as a loss)
+    'menu'    — go to main menu without recording result
+    """
+    font_big  = pygame.font.SysFont("Arial", 36, bold=True)
+    font_med  = pygame.font.SysFont("Arial", 22)
+    clock     = pygame.time.Clock()
+
+    overlay = pygame.Surface((WINDOW_WIDTH, WINDOW_HEIGHT), pygame.SRCALPHA)
+    overlay.fill((0, 0, 0, 170))
+
+    while True:
+        mx, my = pygame.mouse.get_pos()
+        screen.blit(overlay, (0, 0))
+
+        # Title
+        title = font_big.render("Game Paused", True, (255, 255, 255))
+        screen.blit(title, title.get_rect(center=(WINDOW_WIDTH // 2, 210)))
+
+        # Buttons
+        resume_rect = pygame.Rect(220, 265, 200, 48)
+        resign_rect = pygame.Rect(220, 330, 200, 48)
+        menu_rect   = pygame.Rect(220, 395, 200, 48)
+
+        for rect, label, colour in [
+            (resume_rect, "Resume",       (60, 160, 60)),
+            (resign_rect, "Resign (Loss)",(180, 100, 40)),
+            (menu_rect,   "Quit to Menu", (180,  60, 60)),
+        ]:
+            hover  = rect.collidepoint(mx, my)
+            col    = tuple(min(255, c + 30) for c in colour) if hover else colour
+            pygame.draw.rect(screen, col,          rect, border_radius=8)
+            pygame.draw.rect(screen, (181, 136, 99), rect, 2, border_radius=8)
+            txt = font_med.render(label, True, (255, 255, 255))
+            screen.blit(txt, txt.get_rect(center=rect.center))
+
+        hint = font_med.render("Press ESC to resume", True, (120, 120, 120))
+        screen.blit(hint, hint.get_rect(center=(WINDOW_WIDTH // 2, 460)))
+
+        pygame.display.flip()
+        clock.tick(30)
+
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit(); sys.exit()
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_ESCAPE:
+                    return "resume"
+            if event.type == pygame.MOUSEBUTTONDOWN:
+                if resume_rect.collidepoint(mx, my):
+                    return "resume"
+                if resign_rect.collidepoint(mx, my):
+                    return "resign"
+                if menu_rect.collidepoint(mx, my):
+                    return "menu"
 
 def run_game(depth: int = 2, weights: dict = None,
              imprecision: float = 0.0, player_colour: str = "white",
-             return_result: bool = False):
+             return_result: bool = False,     paused = False):
     """Main game loop."""
     pygame.init()
     screen = pygame.display.set_mode((WINDOW_WIDTH, WINDOW_HEIGHT))
@@ -185,6 +243,29 @@ def run_game(depth: int = 2, weights: dict = None,
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 running = False
+
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_ESCAPE and not game_over:
+                    # Draw current board first so it shows behind the overlay
+                    screen.fill((0, 0, 0))
+                    draw_board(screen, selected, legal_targets,
+                               last_move, board, king_in_check)
+                    draw_pieces(screen, board, pieces)
+                    draw_labels(screen, font_small)
+                    pygame.display.flip()
+
+                    pause_result = draw_pause_menu(screen)
+
+                    if pause_result == "resign":
+                        final_result = "loss"
+                        message      = "You resigned."
+                        game_over    = True
+                    elif pause_result == "menu":
+                        # Exit without recording result
+                        if return_result:
+                            return None, move_history
+                        return None, []
+                    # "resume" — just continue
 
             if event.type == pygame.MOUSEBUTTONDOWN and not game_over:
                 if board.turn == player_colour:
